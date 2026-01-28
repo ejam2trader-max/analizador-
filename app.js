@@ -1,76 +1,68 @@
 const video = document.getElementById('video');
-const analyzeBtn = document.getElementById('analyzeBtn');
-const resultsOverlay = document.getElementById('results-overlay');
-const listEntries = document.getElementById('list-entries');
+const canvas = document.getElementById('canvas');
+const snapBtn = document.getElementById('snap');
+const resultsDiv = document.getElementById('results');
+const priceText = document.getElementById('detected-price');
+const entryList = document.getElementById('entry-list');
 
-async function startCamera() {
+// 1. Iniciar cámara
+navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+    .then(stream => { video.srcObject = stream; });
+
+// 2. Procesar Imagen y Analizar
+snapBtn.addEventListener('click', async () => {
+    snapBtn.innerText = "PROCESANDO IMAGEN...";
+    snapBtn.disabled = true;
+
+    // Dibujar frame del video en el canvas
+    const ctx = canvas.getContext('2d');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0);
+
+    // Ejecutar OCR con Tesseract
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: "environment" } 
-        });
-        video.srcObject = stream;
-    } catch (err) {
-        alert("Error de cámara: Asegúrate de usar HTTPS o localhost");
-    }
-}
-
-// Simulación de análisis de proximidad
-analyzeBtn.addEventListener('click', () => {
-    analyzeBtn.innerText = "DETECTANDO PRECIO...";
-    analyzeBtn.disabled = true;
-
-    setTimeout(() => {
-        // Simulamos el precio actual del mercado (ej. Boom 1000)
-        const currentPrice = 12450.75; 
+        const { data: { text } } = await Tesseract.recognize(canvas, 'eng');
         
-        // Generamos 3 entradas muy cercanas (Order Blocks inmediatos)
-        // Boom se opera en Compras, por lo que buscamos el OB justo debajo del precio
-        const suggestions = [
-            { 
-                tipo: "OB Inmediato", 
-                precio: (currentPrice - 0.85).toFixed(2), 
-                distancia: "Muy Cerca" 
-            },
-            { 
-                tipo: "OB Decisional", 
-                precio: (currentPrice - 1.60).toFixed(2), 
-                distancia: "Cercano" 
-            },
-            { 
-                tipo: "OB Extremo (EMA 200)", 
-                precio: (currentPrice - 2.95).toFixed(2), 
-                distancia: "Seguro" 
-            }
-        ];
-
-        renderResults(currentPrice, suggestions);
-        analyzeBtn.innerText = "ANALIZAR ENTRADAS";
-        analyzeBtn.disabled = false;
-    }, 1800);
+        // Extraer solo números con decimales (formato de precio)
+        const numbers = text.match(/\d+\.\d+/g);
+        
+        if (numbers && numbers.length > 0) {
+            // Tomamos el primer número que parezca un precio de índice
+            const realPrice = parseFloat(numbers[0]);
+            mostrarEntradas(realPrice);
+        } else {
+            alert("No se detectó el precio. Asegúrate de enfocar bien los números del eje derecho del gráfico.");
+            snapBtn.innerText = "REINTENTAR";
+            snapBtn.disabled = false;
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Error analizando la imagen.");
+    }
 });
 
-function renderResults(current, data) {
-    listEntries.innerHTML = `
-        <div style="margin-bottom: 15px; border-bottom: 1px solid #444; padding-bottom: 10px;">
-            <small style="color: #888;">PRECIO ACTUAL DETECTADO</small>
-            <div style="font-size: 1.5rem; color: #fff; font-weight: bold;">${current}</div>
-        </div>
-    `;
-    
-    resultsOverlay.style.display = "flex";
-    
-    data.forEach(item => {
-        listEntries.innerHTML += `
-            <div class="entry">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-size: 0.8rem; color: #00e676;">${item.tipo}</span>
-                    <span style="font-size: 0.7rem; background: #333; padding: 2px 6px; border-radius: 4px;">${item.distancia}</span>
-                </div>
-                <div style="font-size: 1.6rem; font-weight: bold; margin: 5px 0;">${item.precio}</div>
-                <div style="color: #888; font-size: 0.7rem;">Estrategia: Esperar reacción en zona</div>
+function mostrarEntradas(price) {
+    snapBtn.style.display = "none";
+    resultsDiv.style.display = "block";
+    priceText.innerText = `PRECIO DETECTADO: ${price}`;
+
+    // Lógica para Boom: Order Blocks están debajo del precio actual
+    // Buscamos zonas de reacción muy cercanas (distancia de pips)
+    const setup = [
+        { zona: "OB Inmediato", p: price - 0.45, conf: "Alta" },
+        { zona: "OB Decisional", p: price - 1.20, conf: "Media" },
+        { zona: "OB EMA 200", p: price - 2.80, conf: "Fuerte" }
+    ];
+
+    entryList.innerHTML = "";
+    setup.forEach(s => {
+        entryList.innerHTML += `
+            <div class="card">
+                <div style="font-size:0.8rem; color:var(--green)">${s.zona}</div>
+                <div style="font-size:1.5rem; font-weight:bold;">${s.p.toFixed(2)}</div>
+                <div style="font-size:0.7rem; color:#aaa;">Confirmación: ${s.conf}</div>
             </div>
         `;
     });
 }
-
-startCamera();
