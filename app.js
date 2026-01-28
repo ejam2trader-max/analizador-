@@ -5,63 +5,71 @@ const resultsDiv = document.getElementById('results');
 const priceText = document.getElementById('detected-price');
 const entryList = document.getElementById('entry-list');
 
-// 1. Iniciar cámara
-navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-    .then(stream => { video.srcObject = stream; });
+// Iniciar cámara con máxima resolución posible
+navigator.mediaDevices.getUserMedia({ 
+    video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } } 
+}).then(stream => { video.srcObject = stream; });
 
-// 2. Procesar Imagen y Analizar
 snapBtn.addEventListener('click', async () => {
-    snapBtn.innerText = "PROCESANDO IMAGEN...";
+    snapBtn.innerText = "LEYENDO GRÁFICO...";
     snapBtn.disabled = true;
 
-    // Dibujar frame del video en el canvas
     const ctx = canvas.getContext('2d');
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0);
 
-    // Ejecutar OCR con Tesseract
+    // --- PRE-PROCESAMIENTO DE IMAGEN ---
+    // Dibujamos la foto en el canvas
+    ctx.drawImage(video, 0, 0);
+    
+    // Aplicamos filtro de escala de grises y alto contraste para mejorar el OCR
+    ctx.filter = 'grayscale(1) contrast(2) brightness(1.2)';
+    ctx.drawImage(canvas, 0, 0);
+
     try {
-        const { data: { text } } = await Tesseract.recognize(canvas, 'eng');
-        
-        // Extraer solo números con decimales (formato de precio)
-        const numbers = text.match(/\d+\.\d+/g);
-        
+        // Ejecutar Tesseract enfocándonos solo en números y puntos
+        const { data: { text } } = await Tesseract.recognize(canvas, 'eng', {
+            tessedit_char_whitelist: '0123456789.' 
+        });
+
+        // Limpiamos el texto para encontrar el precio más probable
+        const numbers = text.match(/\d{4,5}\.\d{2}/g); // Busca formato 12345.67
+
         if (numbers && numbers.length > 0) {
-            // Tomamos el primer número que parezca un precio de índice
+            // Tomamos el número detectado (usualmente el precio actual está en el eje derecho)
             const realPrice = parseFloat(numbers[0]);
-            mostrarEntradas(realPrice);
+            calcularEntradasReales(realPrice);
         } else {
-            alert("No se detectó el precio. Asegúrate de enfocar bien los números del eje derecho del gráfico.");
+            alert("No se detectó un precio válido. Enfoca la columna de precios a la derecha del gráfico.");
             snapBtn.innerText = "REINTENTAR";
             snapBtn.disabled = false;
         }
     } catch (e) {
-        console.error(e);
-        alert("Error analizando la imagen.");
+        alert("Error en el escaneo: " + e.message);
+        snapBtn.disabled = false;
     }
 });
 
-function mostrarEntradas(price) {
+function calcularEntradasReales(price) {
     snapBtn.style.display = "none";
     resultsDiv.style.display = "block";
-    priceText.innerText = `PRECIO DETECTADO: ${price}`;
+    priceText.innerText = `PRECIO BASE: ${price.toFixed(2)}`;
 
-    // Lógica para Boom: Order Blocks están debajo del precio actual
-    // Buscamos zonas de reacción muy cercanas (distancia de pips)
-    const setup = [
-        { zona: "OB Inmediato", p: price - 0.45, conf: "Alta" },
-        { zona: "OB Decisional", p: price - 1.20, conf: "Media" },
-        { zona: "OB EMA 200", p: price - 2.80, conf: "Fuerte" }
+    // Lógica Matemática para Boom (Order Blocks por debajo del precio)
+    // Usamos offsets pequeños (pips) típicos de temporalidad M1
+    const entries = [
+        { nombre: "OB Agresivo", val: price - 0.65 },
+        { nombre: "OB Conservador", val: price - 1.40 },
+        { nombre: "Zona EMA 200", val: price - 2.85 }
     ];
 
     entryList.innerHTML = "";
-    setup.forEach(s => {
+    entries.forEach(e => {
         entryList.innerHTML += `
-            <div class="card">
-                <div style="font-size:0.8rem; color:var(--green)">${s.zona}</div>
-                <div style="font-size:1.5rem; font-weight:bold;">${s.p.toFixed(2)}</div>
-                <div style="font-size:0.7rem; color:#aaa;">Confirmación: ${s.conf}</div>
+            <div class="card" style="border-left: 5px solid #00c853; background: #1a1a1a; margin: 10px; padding: 15px; border-radius: 8px;">
+                <div style="font-size: 0.8rem; color: #888;">${e.nombre}</div>
+                <div style="font-size: 1.6rem; font-weight: bold; color: #fff;">${e.val.toFixed(2)}</div>
+                <div style="font-size: 0.7rem; color: #00c853;">Puntos de distancia: ${(price - e.val).toFixed(2)}</div>
             </div>
         `;
     });
