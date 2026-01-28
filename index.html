@@ -3,38 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Boom Real-Scanner</title>
+    <title>Boom Sniper Pro</title>
     <link rel="manifest" href="manifest.json">
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
-        :root { --bg: #0d1117; --green: #00c853; --accent: #2f363d; }
-        body { font-family: sans-serif; background: var(--bg); color: white; margin: 0; text-align: center; }
-        #scanner-container { position: relative; width: 100%; max-width: 500px; margin: auto; }
-        video { width: 100%; border-bottom: 2px solid var(--green); }
-        .overlay-line { position: absolute; top: 50%; left: 0; width: 100%; height: 2px; background: rgba(0, 200, 83, 0.5); box-shadow: 0 0 10px var(--green); }
-        .btn-main { background: var(--green); border: none; padding: 20px; width: 80%; color: black; font-weight: bold; border-radius: 10px; margin: 20px 0; cursor: pointer; }
-        #results { display: none; padding: 20px; }
-        .card { background: var(--accent); padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 5px solid var(--green); text-align: left; }
-        canvas { display: none; } /* Para procesar la imagen internamente */
+        :root { --bg: #0b0e11; --card: #151a21; --green: #00e676; --text: #eceff1; }
+        body { font-family: 'Roboto', sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; flex-direction: column; align-items: center; height: 100vh; overflow: hidden; }
+        
+        /* Área de Cámara */
+        #scanner-wrapper { position: relative; width: 100%; height: 45vh; background: black; overflow: hidden; }
+        video { width: 100%; height: 100%; object-fit: cover; }
+        
+        /* Retícula de Enfoque (Crucial para OCR) */
+        .focus-box { 
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 200px; height: 60px; 
+            border: 2px solid var(--green); box-shadow: 0 0 20px rgba(0, 230, 118, 0.3);
+            background: rgba(0, 255, 0, 0.1); z-index: 10;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .focus-label { font-size: 10px; background: var(--green); color: black; padding: 2px 5px; position: absolute; top: -15px; }
+
+        /* Controles */
+        .controls { padding: 20px; width: 90%; display: flex; flex-direction: column; gap: 15px; }
+        
+        /* Input de Seguridad */
+        .price-input-group { display: flex; gap: 10px; justify-content: center; align-items: center; }
+        input[type="number"] { background: var(--card); border: 1px solid #333; color: white; padding: 10px; font-size: 1.2rem; width: 120px; text-align: center; border-radius: 5px; }
+        
+        .btn { background: var(--green); color: #000; border: none; padding: 15px; font-weight: 800; font-size: 1rem; border-radius: 8px; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; width: 100%; }
+        .btn:disabled { background: #333; color: #777; }
+
+        /* Resultados */
+        #results-area { width: 90%; flex: 1; overflow-y: auto; padding-bottom: 20px; }
+        .trade-card { background: var(--card); border-left: 4px solid var(--green); padding: 15px; margin-bottom: 10px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
+        .price-tag { font-size: 1.4rem; font-weight: bold; }
+        .pip-dist { font-size: 0.8rem; color: #888; }
+
+        canvas { display: none; } /* Oculto, solo para procesamiento */
     </style>
 </head>
 <body>
 
-    <h2>BOOM SCANNER AI</h2>
-    <div id="scanner-container">
+    <div id="scanner-wrapper">
         <video id="video" autoplay playsinline></video>
-        <div class="overlay-line"></div>
+        <div class="focus-box">
+            <span class="focus-label">ENFOCA EL PRECIO AQUÍ</span>
+        </div>
     </div>
 
     <canvas id="canvas"></canvas>
-    <button class="btn-main" id="snap">ESCANEAR PRECIO REAL</button>
 
-    <div id="results">
-        <h3 id="detected-price">Buscando precio...</h3>
-        <div id="entry-list"></div>
-        <button onclick="location.reload()" style="background:none; color:gray; border:1px solid gray; padding:10px; border-radius:5px;">Nueva captura</button>
+    <div class="controls">
+        <div class="price-input-group">
+            <label>Precio:</label>
+            <input type="number" id="manual-price" placeholder="Ej: 12400">
+            <button id="scan-btn" class="btn" style="width: auto;">📷 ESCANEAR</button>
+        </div>
+        <button id="calc-btn" class="btn">ANALIZAR ENTRADAS</button>
     </div>
 
+    <div id="results-area"></div>
+
     <script src="app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+    </script>
 </body>
 </html>
