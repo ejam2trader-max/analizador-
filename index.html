@@ -3,48 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Boom Scanner OB</title>
+    <title>Boom Real-Scanner</title>
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#00c853">
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
-        :root { --bg: #0a0a0a; --card: #1a1a1a; --green: #00e676; --red: #ff5252; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; display: flex; flex-direction: column; align-items: center; }
-        header { width: 100%; padding: 20px; text-align: center; border-bottom: 1px solid #333; background: var(--card); }
-        #cam-area { width: 95%; max-width: 500px; height: 350px; margin-top: 20px; border-radius: 15px; border: 2px solid #444; overflow: hidden; position: relative; }
-        video { width: 100%; height: 100%; object-fit: cover; }
-        .controls { margin-top: 20px; width: 100%; display: flex; justify-content: center; }
-        .btn-scan { background: var(--green); color: black; border: none; padding: 15px 40px; font-weight: bold; border-radius: 30px; cursor: pointer; font-size: 1rem; }
-        #results-overlay { display: none; position: fixed; inset: 0; background: var(--bg); z-index: 10; flex-direction: column; align-items: center; padding: 20px; }
-        .entry { background: var(--card); width: 90%; padding: 15px; margin: 10px 0; border-radius: 10px; border-left: 5px solid var(--green); }
-        .close-btn { background: var(--red); color: white; border: none; padding: 10px 20px; border-radius: 5px; margin-top: 20px; }
+        :root { --bg: #0d1117; --green: #00c853; --accent: #2f363d; }
+        body { font-family: sans-serif; background: var(--bg); color: white; margin: 0; text-align: center; }
+        #scanner-container { position: relative; width: 100%; max-width: 500px; margin: auto; }
+        video { width: 100%; border-bottom: 2px solid var(--green); }
+        .overlay-line { position: absolute; top: 50%; left: 0; width: 100%; height: 2px; background: rgba(0, 200, 83, 0.5); box-shadow: 0 0 10px var(--green); }
+        .btn-main { background: var(--green); border: none; padding: 20px; width: 80%; color: black; font-weight: bold; border-radius: 10px; margin: 20px 0; cursor: pointer; }
+        #results { display: none; padding: 20px; }
+        .card { background: var(--accent); padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 5px solid var(--green); text-align: left; }
+        canvas { display: none; } /* Para procesar la imagen internamente */
     </style>
 </head>
 <body>
 
-<header>
-    <h2 style="margin:0; color:var(--green);">BOOM AI SCANNER</h2>
-    <small>Filtro: Order Block > EMA 200</small>
-</header>
+    <h2>BOOM SCANNER AI</h2>
+    <div id="scanner-container">
+        <video id="video" autoplay playsinline></video>
+        <div class="overlay-line"></div>
+    </div>
 
-<div id="cam-area">
-    <video id="video" autoplay playsinline></video>
-</div>
+    <canvas id="canvas"></canvas>
+    <button class="btn-main" id="snap">ESCANEAR PRECIO REAL</button>
 
-<div class="controls">
-    <button class="btn-scan" id="analyzeBtn">ANALIZAR ENTRADAS</button>
-</div>
+    <div id="results">
+        <h3 id="detected-price">Buscando precio...</h3>
+        <div id="entry-list"></div>
+        <button onclick="location.reload()" style="background:none; color:gray; border:1px solid gray; padding:10px; border-radius:5px;">Nueva captura</button>
+    </div>
 
-<div id="results-overlay">
-    <h2 style="color:var(--green)">ENTRADAS DETECTADAS</h2>
-    <div id="list-entries" style="width: 100%; display: flex; flex-direction: column; align-items: center;"></div>
-    <button class="close-btn" onclick="document.getElementById('results-overlay').style.display='none'">CERRAR</button>
-</div>
-
-<script src="app.js"></script>
-<script>
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js');
-    }
-</script>
+    <script src="app.js"></script>
 </body>
 </html>
